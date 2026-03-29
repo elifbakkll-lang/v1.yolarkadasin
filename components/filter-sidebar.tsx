@@ -12,7 +12,8 @@ import {
   ChevronDown,
   Filter,
   RotateCcw,
-  MapPin
+  MapPin,
+  Navigation
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -33,16 +34,17 @@ export interface FilterState {
 interface FilterSidebarProps {
   filters: FilterState
   onFiltersChange: (filters: FilterState) => void
+  onCreateRoute?: () => void
   className?: string
 }
 
 const disabilityGroups = [
   { id: "wheelchair", label: "Tekerlekli Sandalye", icon: Accessibility, color: "text-primary" },
-  { id: "visually-impaired", label: "Görme Engelli", icon: Eye, color: "text-chart-2" },
-  { id: "hearing-impaired", label: "İşitme Engelli", icon: Ear, color: "text-chart-3" },
-  { id: "cognitive", label: "Bilişsel Engel", icon: Brain, color: "text-chart-4" },
-  { id: "elderly", label: "Yaşlı Bireyler", icon: HandHelping, color: "text-chart-5" },
-  { id: "stroller", label: "Bebek Arabası", icon: Baby, color: "text-accent" },
+  { id: "visually-impaired", label: "Gorme Engelli", icon: Eye, color: "text-chart-2" },
+  { id: "hearing-impaired", label: "Isitme Engelli", icon: Ear, color: "text-chart-3" },
+  { id: "cognitive", label: "Bilissel Engel", icon: Brain, color: "text-chart-4" },
+  { id: "elderly", label: "Yasli Bireyler", icon: HandHelping, color: "text-chart-5" },
+  { id: "stroller", label: "Bebek Arabasi", icon: Baby, color: "text-accent" },
 ]
 
 const poiTypes = [
@@ -51,24 +53,24 @@ const poiTypes = [
   { id: "hospital", label: "Hastaneler" },
   { id: "pharmacy", label: "Eczaneler" },
   { id: "toilet", label: "Engelli Tuvaletleri" },
-  { id: "elevator", label: "Asansörler" },
+  { id: "elevator", label: "Asansorler" },
   { id: "ramp", label: "Rampalar" },
-  { id: "parking", label: "Engelli Parkları" },
+  { id: "parking", label: "Engelli Parklari" },
 ]
 
 const routePreferences = [
-  { id: "no-stairs", label: "Merdivensiz" },
-  { id: "flat-surface", label: "Düz Zemin" },
-  { id: "wide-sidewalk", label: "Geniş Kaldırım" },
-  { id: "audio-signals", label: "Sesli Sinyaller" },
-  { id: "tactile-paving", label: "Hissedilebilir Yüzey" },
+  { id: "no-stairs", label: "Merdivensiz", description: "Asansor ve rampa kullan" },
+  { id: "flat-surface", label: "Duz Zemin", description: "Engelsiz yuzey" },
+  { id: "wide-sidewalk", label: "Genis Kaldirim", description: "Min. 1.5m genislik" },
+  { id: "audio-signals", label: "Sesli Sinyaller", description: "Sesli trafik isiklari" },
+  { id: "tactile-paving", label: "Hissedilebilir Yuzey", description: "Dokunsal zemin" },
 ]
 
-export function FilterSidebar({ filters, onFiltersChange, className }: FilterSidebarProps) {
+export function FilterSidebar({ filters, onFiltersChange, onCreateRoute, className }: FilterSidebarProps) {
   const [openSections, setOpenSections] = useState({
     disability: true,
     poi: true,
-    route: false,
+    route: true,
   })
 
   const toggleDisabilityType = (id: string) => {
@@ -132,7 +134,7 @@ export function FilterSidebar({ filters, onFiltersChange, className }: FilterSid
           disabled={activeFiltersCount === 0}
         >
           <RotateCcw className="mr-1 h-3 w-3" aria-hidden="true" />
-          Sıfırla
+          Sifirla
         </Button>
       </div>
 
@@ -147,7 +149,7 @@ export function FilterSidebar({ filters, onFiltersChange, className }: FilterSid
             <CollapsibleTrigger className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left font-medium hover:bg-sidebar-accent transition-colors">
               <span className="flex items-center gap-2">
                 <Accessibility className="h-4 w-4 text-sidebar-primary" aria-hidden="true" />
-                Engel Grupları
+                Engel Gruplari
               </span>
               <ChevronDown 
                 className={cn(
@@ -208,7 +210,7 @@ export function FilterSidebar({ filters, onFiltersChange, className }: FilterSid
             <CollapsibleTrigger className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left font-medium hover:bg-sidebar-accent transition-colors">
               <span className="flex items-center gap-2">
                 <MapPin className="h-4 w-4 text-sidebar-primary" aria-hidden="true" />
-                Mekan Türleri
+                Mekan Turleri
               </span>
               <ChevronDown 
                 className={cn(
@@ -266,15 +268,7 @@ export function FilterSidebar({ filters, onFiltersChange, className }: FilterSid
           >
             <CollapsibleTrigger className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left font-medium hover:bg-sidebar-accent transition-colors">
               <span className="flex items-center gap-2">
-                <svg 
-                  className="h-4 w-4 text-sidebar-primary" 
-                  fill="none" 
-                  viewBox="0 0 24 24" 
-                  stroke="currentColor"
-                  aria-hidden="true"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-                </svg>
+                <Navigation className="h-4 w-4 text-sidebar-primary" aria-hidden="true" />
                 Rota Tercihleri
               </span>
               <ChevronDown 
@@ -314,12 +308,17 @@ export function FilterSidebar({ filters, onFiltersChange, className }: FilterSid
                       onCheckedChange={() => toggleRoutePreference(pref.id)}
                       className="border-sidebar-border data-[state=checked]:bg-sidebar-primary data-[state=checked]:border-sidebar-primary"
                     />
-                    <Label 
-                      htmlFor={`route-${pref.id}`}
-                      className="flex-1 cursor-pointer text-sm font-normal"
-                    >
-                      {pref.label}
-                    </Label>
+                    <div className="flex-1">
+                      <Label 
+                        htmlFor={`route-${pref.id}`}
+                        className="cursor-pointer text-sm font-normal block"
+                      >
+                        {pref.label}
+                      </Label>
+                      <span className="text-xs text-sidebar-foreground/60">
+                        {pref.description}
+                      </span>
+                    </div>
                   </div>
                 )
               })}
@@ -329,14 +328,20 @@ export function FilterSidebar({ filters, onFiltersChange, className }: FilterSid
       </ScrollArea>
 
       {/* Footer */}
-      <div className="border-t border-sidebar-border p-4">
+      <div className="border-t border-sidebar-border p-4 space-y-2">
         <Button 
           className="w-full bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90"
           size="lg"
+          onClick={onCreateRoute}
         >
-          <MapPin className="mr-2 h-4 w-4" aria-hidden="true" />
-          Rota Oluştur
+          <Navigation className="mr-2 h-4 w-4" aria-hidden="true" />
+          Rota Olustur
         </Button>
+        {filters.routePreferences.length > 0 && (
+          <p className="text-xs text-sidebar-foreground/60 text-center">
+            {filters.routePreferences.length} erisilebilik tercihi aktif
+          </p>
+        )}
       </div>
     </aside>
   )

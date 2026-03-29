@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useRef, useState } from "react"
 import { cn } from "@/lib/utils"
 import { 
   Plus, 
@@ -9,7 +9,11 @@ import {
   Layers,
   Navigation,
   Search,
-  X
+  X,
+  Clock,
+  Footprints,
+  Bus,
+  Train
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -25,6 +29,7 @@ interface MapViewProps {
   filters: FilterState
   className?: string
   onLocationSelect?: (location: { lat: number; lng: number; name: string }) => void
+  activeRoute?: unknown
 }
 
 interface MapMarker {
@@ -39,23 +44,23 @@ interface MapMarker {
 
 // Sample accessible locations in Istanbul
 const sampleMarkers: MapMarker[] = [
-  { id: "1", lat: 41.0082, lng: 28.9784, type: "cafe", name: "Erişilebilir Kafe", accessible: true, details: "Rampa ve engelli tuvaleti mevcut" },
-  { id: "2", lat: 41.0122, lng: 28.9760, type: "hospital", name: "Şehir Hastanesi", accessible: true, details: "Tam erişilebilir, asansörlü" },
-  { id: "3", lat: 41.0055, lng: 28.9830, type: "elevator", name: "Metro Asansörü", accessible: true, details: "24 saat aktif" },
-  { id: "4", lat: 41.0100, lng: 28.9700, type: "toilet", name: "Engelli Tuvaleti", accessible: true, details: "Belediye tarafından işletiliyor" },
-  { id: "5", lat: 41.0070, lng: 28.9750, type: "parking", name: "Engelli Parkı", accessible: true, details: "3 araçlık kapasite" },
-  { id: "6", lat: 41.0140, lng: 28.9820, type: "ramp", name: "Kaldırım Rampası", accessible: true, details: "Yeni yapılmış" },
-  { id: "7", lat: 41.0090, lng: 28.9680, type: "restaurant", name: "Aile Restoranı", accessible: true, details: "Geniş koridorlar" },
-  { id: "8", lat: 41.0030, lng: 28.9770, type: "pharmacy", name: "7/24 Eczane", accessible: true, details: "Rampa girişi mevcut" },
+  { id: "1", lat: 41.0082, lng: 28.9784, type: "cafe", name: "Eriselebilir Kafe", accessible: true, details: "Rampa ve engelli tuvaleti mevcut" },
+  { id: "2", lat: 41.0122, lng: 28.9760, type: "hospital", name: "Sehir Hastanesi", accessible: true, details: "Tam eriselebilir, asansorlu" },
+  { id: "3", lat: 41.0055, lng: 28.9830, type: "elevator", name: "Metro Asansoru", accessible: true, details: "24 saat aktif" },
+  { id: "4", lat: 41.0100, lng: 28.9700, type: "toilet", name: "Engelli Tuvaleti", accessible: true, details: "Belediye tarafindan isletiliyor" },
+  { id: "5", lat: 41.0070, lng: 28.9750, type: "parking", name: "Engelli Parki", accessible: true, details: "3 araclik kapasite" },
+  { id: "6", lat: 41.0140, lng: 28.9820, type: "ramp", name: "Kaldirim Rampasi", accessible: true, details: "Yeni yapilmis" },
+  { id: "7", lat: 41.0090, lng: 28.9680, type: "restaurant", name: "Aile Restorani", accessible: true, details: "Genis koridorlar" },
+  { id: "8", lat: 41.0030, lng: 28.9770, type: "pharmacy", name: "7/24 Eczane", accessible: true, details: "Rampa girisi mevcut" },
 ]
 
 const mapStyles = [
   { id: "standard", label: "Standart" },
   { id: "satellite", label: "Uydu" },
-  { id: "accessibility", label: "Erişilebilirlik" },
+  { id: "accessibility", label: "Eriselebilirlik" },
 ]
 
-export function MapView({ filters, className, onLocationSelect }: MapViewProps) {
+export function MapView({ filters, className, onLocationSelect, activeRoute }: MapViewProps) {
   const mapRef = useRef<HTMLDivElement>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedStyle, setSelectedStyle] = useState("standard")
@@ -81,8 +86,8 @@ export function MapView({ filters, className, onLocationSelect }: MapViewProps) 
             lng: position.coords.longitude
           })
         },
-        (error) => {
-          console.error("Konum alınamadı:", error)
+        () => {
+          // Silently fail - location might not be available
         }
       )
     }
@@ -104,17 +109,27 @@ export function MapView({ filters, className, onLocationSelect }: MapViewProps) 
 
   const getMarkerIcon = (type: string) => {
     switch (type) {
-      case "cafe": return "☕"
-      case "restaurant": return "🍽️"
-      case "hospital": return "🏥"
-      case "pharmacy": return "💊"
-      case "toilet": return "🚻"
-      case "elevator": return "🛗"
-      case "ramp": return "♿"
-      case "parking": return "🅿️"
-      default: return "📍"
+      case "cafe": return "C"
+      case "restaurant": return "R"
+      case "hospital": return "H"
+      case "pharmacy": return "E"
+      case "toilet": return "T"
+      case "elevator": return "A"
+      case "ramp": return "+"
+      case "parking": return "P"
+      default: return "M"
     }
   }
+
+  // Route visualization data (simulated)
+  const routePoints = activeRoute ? [
+    { x: 20, y: 70, type: "start" },
+    { x: 25, y: 60, type: "walk" },
+    { x: 35, y: 50, type: "metro" },
+    { x: 55, y: 45, type: "metro" },
+    { x: 65, y: 40, type: "walk" },
+    { x: 75, y: 35, type: "end" },
+  ] : []
 
   return (
     <div className={cn("relative flex-1 bg-muted overflow-hidden", className)}>
@@ -134,7 +149,7 @@ export function MapView({ filters, className, onLocationSelect }: MapViewProps) 
             <button
               className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 hover:bg-muted"
               onClick={() => setSearchQuery("")}
-              aria-label="Aramayı temizle"
+              aria-label="Aramayi temizle"
             >
               <X className="h-4 w-4 text-muted-foreground" />
             </button>
@@ -174,9 +189,91 @@ export function MapView({ filters, className, onLocationSelect }: MapViewProps) 
           <line x1="75%" y1="0" x2="25%" y2="100%" stroke="currentColor" strokeWidth="2" className="text-foreground/10" />
         </svg>
 
+        {/* Active Route Visualization */}
+        {activeRoute && routePoints.length > 0 && (
+          <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 5 }}>
+            {/* Route path */}
+            <defs>
+              <linearGradient id="routeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="hsl(var(--primary))" />
+                <stop offset="100%" stopColor="hsl(var(--chart-2))" />
+              </linearGradient>
+              <filter id="routeGlow">
+                <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                <feMerge> 
+                  <feMergeNode in="coloredBlur"/>
+                  <feMergeNode in="SourceGraphic"/>
+                </feMerge>
+              </filter>
+            </defs>
+            
+            {/* Route line with animation */}
+            <polyline
+              points={routePoints.map(p => `${p.x}%,${p.y}%`).join(' ')}
+              fill="none"
+              stroke="url(#routeGradient)"
+              strokeWidth="6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              filter="url(#routeGlow)"
+              strokeDasharray="1000"
+              strokeDashoffset="0"
+              className="animate-pulse"
+            />
+
+            {/* Route direction arrows */}
+            {routePoints.slice(0, -1).map((point, i) => {
+              const nextPoint = routePoints[i + 1]
+              const midX = (point.x + nextPoint.x) / 2
+              const midY = (point.y + nextPoint.y) / 2
+              return (
+                <circle
+                  key={i}
+                  cx={`${midX}%`}
+                  cy={`${midY}%`}
+                  r="4"
+                  fill="white"
+                  stroke="hsl(var(--primary))"
+                  strokeWidth="2"
+                />
+              )
+            })}
+          </svg>
+        )}
+
+        {/* Route stop markers */}
+        {activeRoute && routePoints.map((point, index) => (
+          <div
+            key={index}
+            className="absolute -translate-x-1/2 -translate-y-1/2 z-10"
+            style={{ left: `${point.x}%`, top: `${point.y}%` }}
+          >
+            {point.type === "start" && (
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg ring-4 ring-white">
+                <Navigation className="h-5 w-5" />
+              </div>
+            )}
+            {point.type === "end" && (
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-destructive text-destructive-foreground shadow-lg ring-4 ring-white">
+                <div className="h-3 w-3 rounded-full bg-white" />
+              </div>
+            )}
+            {point.type === "metro" && (
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-green-500 text-white shadow-lg">
+                <Train className="h-4 w-4" />
+              </div>
+            )}
+            {point.type === "walk" && (
+              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-muted shadow">
+                <Footprints className="h-3 w-3" />
+              </div>
+            )}
+          </div>
+        ))}
+
         {/* Markers */}
         <div className="absolute inset-0">
-          {filteredMarkers.map((marker, index) => {
+          {filteredMarkers.map((marker) => {
             // Calculate position based on lat/lng relative to center
             const x = 50 + (marker.lng - center.lng) * zoom * 100
             const y = 50 - (marker.lat - center.lat) * zoom * 100
@@ -204,7 +301,7 @@ export function MapView({ filters, className, onLocationSelect }: MapViewProps) 
                     selectedMarker?.id === marker.id && "ring-4 ring-white scale-110"
                   )}
                 >
-                  <span className="text-lg" role="img" aria-hidden="true">
+                  <span className="text-sm font-bold text-white" role="img" aria-hidden="true">
                     {getMarkerIcon(marker.type)}
                   </span>
                 </div>
@@ -227,13 +324,55 @@ export function MapView({ filters, className, onLocationSelect }: MapViewProps) 
         </div>
       </div>
 
+      {/* Route Info Card */}
+      {activeRoute && (
+        <div className="absolute top-20 left-4 right-4 md:left-6 md:right-auto md:w-80 z-10">
+          <div className="rounded-xl bg-card p-4 shadow-xl border">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                <Navigation className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-sm">Eriselebilir Rota Aktif</h3>
+                <p className="text-xs text-muted-foreground">En hizli eriselebilir guzergah</p>
+              </div>
+            </div>
+            <div className="flex items-center justify-between text-sm border-t pt-3">
+              <div className="flex items-center gap-4">
+                <span className="flex items-center gap-1 text-muted-foreground">
+                  <Clock className="h-4 w-4" />
+                  28 dk
+                </span>
+                <span className="flex items-center gap-1 text-muted-foreground">
+                  <Footprints className="h-4 w-4" />
+                  4.2 km
+                </span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="p-1 rounded bg-muted">
+                  <Footprints className="h-3 w-3" />
+                </div>
+                <span className="text-xs text-muted-foreground">→</span>
+                <div className="p-1 rounded bg-green-100">
+                  <Train className="h-3 w-3 text-green-600" />
+                </div>
+                <span className="text-xs text-muted-foreground">→</span>
+                <div className="p-1 rounded bg-muted">
+                  <Footprints className="h-3 w-3" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Selected Marker Info */}
-      {selectedMarker && (
+      {selectedMarker && !activeRoute && (
         <div className="absolute bottom-24 left-4 right-4 z-10 md:left-6 md:right-auto md:w-80">
           <div className="rounded-xl bg-card p-4 shadow-xl border">
             <div className="flex items-start gap-3">
               <div className={cn(
-                "flex h-12 w-12 items-center justify-center rounded-lg text-2xl",
+                "flex h-12 w-12 items-center justify-center rounded-lg text-lg font-bold text-white",
                 getMarkerColor(selectedMarker.type)
               )}>
                 {getMarkerIcon(selectedMarker.type)}
@@ -243,7 +382,7 @@ export function MapView({ filters, className, onLocationSelect }: MapViewProps) 
                 <p className="text-sm text-muted-foreground mt-0.5">{selectedMarker.details}</p>
                 <div className="flex items-center gap-2 mt-2">
                   <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-                    ♿ Erişilebilir
+                    + Eriselebilir
                   </span>
                 </div>
               </div>
@@ -313,7 +452,7 @@ export function MapView({ filters, className, onLocationSelect }: MapViewProps) 
             size="icon"
             className="h-10 w-10 rounded-none hover:bg-accent"
             onClick={handleZoomIn}
-            aria-label="Yakınlaştır"
+            aria-label="Yakinlastir"
           >
             <Plus className="h-4 w-4" />
           </Button>
@@ -323,7 +462,7 @@ export function MapView({ filters, className, onLocationSelect }: MapViewProps) 
             size="icon"
             className="h-10 w-10 rounded-none hover:bg-accent"
             onClick={handleZoomOut}
-            aria-label="Uzaklaştır"
+            aria-label="Uzaklastir"
           >
             <Minus className="h-4 w-4" />
           </Button>
@@ -332,14 +471,14 @@ export function MapView({ filters, className, onLocationSelect }: MapViewProps) 
 
       {/* Zoom indicator */}
       <div className="absolute bottom-6 left-6 z-10 rounded-full bg-card/80 px-3 py-1.5 text-xs font-medium shadow backdrop-blur">
-        Yakınlık: {zoom}x
+        Yakinlik: {zoom}x
       </div>
 
       {/* Accessibility mode indicator */}
       {filters.disabilityTypes.length > 0 && (
-        <div className="absolute top-20 left-6 z-10 rounded-lg bg-primary/90 px-3 py-2 text-sm font-medium text-primary-foreground shadow-lg backdrop-blur md:top-4 md:left-auto md:right-6">
+        <div className="absolute top-20 right-6 z-10 rounded-lg bg-primary/90 px-3 py-2 text-sm font-medium text-primary-foreground shadow-lg backdrop-blur md:top-4">
           <span className="flex items-center gap-2">
-            ♿ Erişilebilirlik modu aktif
+            + Eriselebilirlik modu aktif
           </span>
         </div>
       )}

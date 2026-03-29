@@ -7,15 +7,16 @@ import { FilterSidebar, type FilterState } from "./filter-sidebar"
 import { MapView } from "./map-view"
 import { NotificationPanel, type Notification } from "./notification-panel"
 import { ReportModal } from "./report-modal"
+import { RoutePlanner } from "./route-planner"
 import { Button } from "@/components/ui/button"
 import { 
   PanelLeftClose, 
   PanelRightClose,
   PanelLeft,
   PanelRight,
-  AlertTriangle,
   Camera,
-  Building2
+  Building2,
+  Navigation
 } from "lucide-react"
 import {
   Tooltip,
@@ -43,18 +44,18 @@ const volunteerNotifications: Notification[] = [
     timestamp: new Date(Date.now() - 1000 * 60 * 15),
     read: false,
     image: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=300&fit=crop",
-    imageAlt: "Arizali asansor fotografI",
+    imageAlt: "Arizali asansor fotografi",
   },
   {
     id: "2",
     type: "warning",
     title: "Kaldirim Engeli",
-    message: "Besiktas Meydani cevresinde kaldirim cokme sorunu mevcut. Tekerlekli sandalye kullanIcIlarI dikkatli olmalI.",
+    message: "Besiktas Meydani cevresinde kaldirim cokme sorunu mevcut. Tekerlekli sandalye kullanicilari dikkatli olmali.",
     location: "Besiktas, Istanbul",
     timestamp: new Date(Date.now() - 1000 * 60 * 45),
     read: false,
     image: "https://images.unsplash.com/photo-1584438784894-089d6a62b8fa?w=400&h=300&fit=crop",
-    imageAlt: "Bozuk kaldirim fotografI",
+    imageAlt: "Bozuk kaldirim fotografi",
   },
   {
     id: "3",
@@ -69,7 +70,7 @@ const volunteerNotifications: Notification[] = [
     id: "4",
     type: "info",
     title: "Iyilik Puani Kazandiniz",
-    message: "Mekan fotografI paylasIminIz icin 50 iyilik puani kazandiniz!",
+    message: "Mekan fotografi paylasIminiz icin 50 iyilik puani kazandiniz!",
     timestamp: new Date(Date.now() - 1000 * 60 * 60 * 3),
     read: true,
   },
@@ -85,7 +86,7 @@ const disabledUserNotifications: Notification[] = [
     timestamp: new Date(Date.now() - 1000 * 60 * 30),
     read: false,
     image: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=300&fit=crop",
-    imageAlt: "Asansor fotografI",
+    imageAlt: "Asansor fotografi",
     reportedBy: "Mehmet K.",
     status: "in_progress",
   },
@@ -98,7 +99,7 @@ const disabledUserNotifications: Notification[] = [
     timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2),
     read: false,
     image: "https://images.unsplash.com/photo-1587293852726-70cdb56c2866?w=400&h=300&fit=crop",
-    imageAlt: "Yeni rampa fotografI",
+    imageAlt: "Yeni rampa fotografi",
     reportedBy: "Ayse T.",
     status: "resolved",
   },
@@ -111,7 +112,7 @@ const disabledUserNotifications: Notification[] = [
     timestamp: new Date(Date.now() - 1000 * 60 * 60 * 3),
     read: true,
     image: "https://images.unsplash.com/photo-1584438784894-089d6a62b8fa?w=400&h=300&fit=crop",
-    imageAlt: "Bozuk kaldirim fotografI",
+    imageAlt: "Bozuk kaldirim fotografi",
     reportedBy: "Ali R.",
     status: "pending",
   },
@@ -139,6 +140,9 @@ export function HomePage() {
   const [leftSidebarOpen, setLeftSidebarOpen] = useState(true)
   const [rightPanelOpen, setRightPanelOpen] = useState(true)
   const [reportModalOpen, setReportModalOpen] = useState(false)
+  const [routePlannerOpen, setRoutePlannerOpen] = useState(false)
+  const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: number; name: string } | undefined>()
+  const [activeRoute, setActiveRoute] = useState<unknown>(null)
 
   const handleUserTypeChange = useCallback((type: UserType) => {
     setUserType(type)
@@ -167,7 +171,16 @@ export function HomePage() {
   }, [])
 
   const handleLocationSelect = useCallback((location: { lat: number; lng: number; name: string }) => {
-    // Handle location selection
+    setSelectedLocation(location)
+  }, [])
+
+  const handleCreateRoute = useCallback(() => {
+    setRoutePlannerOpen(true)
+  }, [])
+
+  const handleRouteSelect = useCallback((route: unknown) => {
+    setActiveRoute(route)
+    // Close route planner and show route on map
   }, [])
 
   // Different floating button based on user type
@@ -211,6 +224,7 @@ export function HomePage() {
               <FilterSidebar 
                 filters={filters} 
                 onFiltersChange={setFilters}
+                onCreateRoute={handleCreateRoute}
               />
             )}
           </div>
@@ -238,7 +252,26 @@ export function HomePage() {
               filters={filters}
               onLocationSelect={handleLocationSelect}
               className="h-full"
+              activeRoute={activeRoute}
             />
+
+            {/* Floating Route Button */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="lg"
+                  className="absolute bottom-24 md:bottom-20 left-1/2 -translate-x-1/2 md:left-6 md:translate-x-0 h-12 px-6 rounded-full shadow-xl hover:scale-105 transition-transform bg-chart-2 hover:bg-chart-2/90"
+                  onClick={() => setRoutePlannerOpen(true)}
+                  aria-label="Rota planla"
+                >
+                  <Navigation className="h-5 w-5 mr-2" />
+                  Rota Planla
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="right">
+                <p>Eriselebilir rota olustur</p>
+              </TooltipContent>
+            </Tooltip>
 
             {/* Floating Report Button */}
             <Tooltip>
@@ -246,8 +279,8 @@ export function HomePage() {
                 <Button
                   size="lg"
                   className={cn(
-                    "absolute bottom-24 md:bottom-6 left-1/2 -translate-x-1/2 md:left-auto md:right-24 md:translate-x-0 h-14 w-14 rounded-full shadow-xl hover:scale-105 transition-transform",
-                    userType === "disabled" && "bg-chart-2 hover:bg-chart-2/90"
+                    "absolute bottom-24 md:bottom-6 right-6 h-14 w-14 rounded-full shadow-xl hover:scale-105 transition-transform",
+                    userType === "disabled" && "bg-primary hover:bg-primary/90"
                   )}
                   onClick={() => setReportModalOpen(true)}
                   aria-label={floatingButtonTooltip}
@@ -259,6 +292,25 @@ export function HomePage() {
                 <p>{floatingButtonTooltip}</p>
               </TooltipContent>
             </Tooltip>
+
+            {/* Active Route Indicator */}
+            {activeRoute && (
+              <div className="absolute top-4 left-1/2 -translate-x-1/2 md:left-6 md:translate-x-0 z-10">
+                <div className="flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-primary-foreground shadow-lg">
+                  <Navigation className="h-4 w-4 animate-pulse" />
+                  <span className="text-sm font-medium">Rota aktif</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0 rounded-full hover:bg-primary-foreground/20"
+                    onClick={() => setActiveRoute(null)}
+                  >
+                    <span className="sr-only">Rotayi kapat</span>
+                    <span className="text-xs">X</span>
+                  </Button>
+                </div>
+              </div>
+            )}
 
             {/* Partner Organizations Strip */}
             <div className="absolute bottom-6 left-6 hidden md:block">
@@ -341,15 +393,14 @@ export function HomePage() {
             <PanelLeft className="h-5 w-5" />
             <span className="text-[10px]">Filtreler</span>
           </Button>
+          
           <Button 
             variant="ghost" 
             className="flex flex-col items-center gap-0.5 h-auto py-2"
+            onClick={() => setRoutePlannerOpen(true)}
           >
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-            <span className="text-[10px]">Harita</span>
+            <Navigation className="h-5 w-5" />
+            <span className="text-[10px]">Rota</span>
           </Button>
           
           {/* Report Button - Mobile */}
@@ -403,6 +454,15 @@ export function HomePage() {
           open={reportModalOpen} 
           onOpenChange={setReportModalOpen}
           userType={userType}
+        />
+
+        {/* Route Planner Modal */}
+        <RoutePlanner
+          open={routePlannerOpen}
+          onOpenChange={setRoutePlannerOpen}
+          filters={filters}
+          startLocation={selectedLocation}
+          onRouteSelect={handleRouteSelect}
         />
       </div>
     </TooltipProvider>
