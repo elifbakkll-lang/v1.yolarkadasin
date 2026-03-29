@@ -14,7 +14,11 @@ import {
   Settings,
   BellOff,
   Image as ImageIcon,
-  ExternalLink
+  ExternalLink,
+  ThumbsUp,
+  User,
+  Camera,
+  Wrench
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -31,10 +35,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import type { UserType } from "./header"
 
 export interface Notification {
   id: string
-  type: "warning" | "success" | "info"
+  type: "warning" | "success" | "info" | "volunteer_report"
   title: string
   message: string
   location?: string
@@ -42,6 +47,8 @@ export interface Notification {
   read: boolean
   image?: string
   imageAlt?: string
+  reportedBy?: string
+  status?: "pending" | "in_progress" | "resolved"
 }
 
 interface NotificationPanelProps {
@@ -49,6 +56,8 @@ interface NotificationPanelProps {
   onNotificationRead: (id: string) => void
   onNotificationDismiss: (id: string) => void
   onClearAll: () => void
+  onMarkResolved?: (id: string) => void
+  userType: UserType
   className?: string
 }
 
@@ -71,6 +80,18 @@ const typeConfig = {
     bgColor: "bg-chart-2/10",
     borderColor: "border-chart-2/20",
   },
+  volunteer_report: {
+    icon: Camera,
+    color: "text-chart-5",
+    bgColor: "bg-chart-5/10",
+    borderColor: "border-chart-5/20",
+  },
+}
+
+const statusConfig = {
+  pending: { label: "Beklemede", color: "bg-amber-500" },
+  in_progress: { label: "Isleniyor", color: "bg-blue-500" },
+  resolved: { label: "Cozuldu", color: "bg-primary" },
 }
 
 function formatTimeAgo(date: Date): string {
@@ -91,20 +112,27 @@ export function NotificationPanel({
   onNotificationRead,
   onNotificationDismiss,
   onClearAll,
+  onMarkResolved,
+  userType,
   className 
 }: NotificationPanelProps) {
   const [activeTab, setActiveTab] = useState("all")
-  const [selectedImage, setSelectedImage] = useState<{ url: string; alt: string } | null>(null)
+  const [selectedImage, setSelectedImage] = useState<{ url: string; alt: string; reportedBy?: string } | null>(null)
 
   const unreadCount = notifications.filter(n => !n.read).length
   const warningNotifications = notifications.filter(n => n.type === "warning")
-  const otherNotifications = notifications.filter(n => n.type !== "warning")
+  const volunteerReports = notifications.filter(n => n.type === "volunteer_report")
+  const otherNotifications = notifications.filter(n => n.type !== "warning" && n.type !== "volunteer_report")
 
-  const filteredNotifications = activeTab === "all" 
-    ? notifications 
-    : activeTab === "warnings" 
-      ? warningNotifications 
-      : otherNotifications
+  // For disabled users, show volunteer reports prominently
+  const getFilteredNotifications = () => {
+    if (activeTab === "all") return notifications
+    if (activeTab === "warnings") return warningNotifications
+    if (activeTab === "reports") return volunteerReports
+    return otherNotifications
+  }
+
+  const filteredNotifications = getFilteredNotifications()
 
   return (
     <>
@@ -119,7 +147,9 @@ export function NotificationPanel({
         <div className="flex items-center justify-between border-b border-border px-4 py-4">
           <div className="flex items-center gap-2">
             <Bell className="h-5 w-5 text-primary" aria-hidden="true" />
-            <h2 className="text-lg font-semibold text-card-foreground">Bildirimler</h2>
+            <h2 className="text-lg font-semibold text-card-foreground">
+              {userType === "disabled" ? "Durum Takibi" : "Bildirimler"}
+            </h2>
             {unreadCount > 0 && (
               <Badge variant="default" className="h-5 min-w-5 rounded-full px-1.5 text-xs">
                 {unreadCount}
@@ -138,24 +168,37 @@ export function NotificationPanel({
           </div>
         </div>
 
-        {/* Tabs */}
+        {/* Tabs - Different tabs for different user types */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-          <TabsList className="mx-4 mt-4 grid w-auto grid-cols-3 bg-muted">
+          <TabsList className={cn(
+            "mx-4 mt-4 grid w-auto bg-muted",
+            userType === "disabled" ? "grid-cols-3" : "grid-cols-3"
+          )}>
             <TabsTrigger value="all" className="text-xs">
               Tumu
-              {notifications.length > 0 && (
-                <span className="ml-1 text-muted-foreground">({notifications.length})</span>
-              )}
             </TabsTrigger>
-            <TabsTrigger value="warnings" className="text-xs">
-              Uyarilar
-              {warningNotifications.length > 0 && (
-                <span className="ml-1 text-muted-foreground">({warningNotifications.length})</span>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="other" className="text-xs">
-              Diger
-            </TabsTrigger>
+            {userType === "disabled" ? (
+              <>
+                <TabsTrigger value="reports" className="text-xs">
+                  Gonullu
+                  {volunteerReports.length > 0 && (
+                    <span className="ml-1 text-muted-foreground">({volunteerReports.length})</span>
+                  )}
+                </TabsTrigger>
+                <TabsTrigger value="warnings" className="text-xs">
+                  Uyarilar
+                </TabsTrigger>
+              </>
+            ) : (
+              <>
+                <TabsTrigger value="warnings" className="text-xs">
+                  Uyarilar
+                </TabsTrigger>
+                <TabsTrigger value="other" className="text-xs">
+                  Diger
+                </TabsTrigger>
+              </>
+            )}
           </TabsList>
 
           <TabsContent value={activeTab} className="flex-1 mt-0 data-[state=active]:flex data-[state=active]:flex-col">
@@ -175,12 +218,13 @@ export function NotificationPanel({
                   {filteredNotifications.map((notification) => {
                     const config = typeConfig[notification.type]
                     const Icon = config.icon
+                    const status = notification.status ? statusConfig[notification.status] : null
 
                     return (
                       <div
                         key={notification.id}
                         className={cn(
-                          "group relative rounded-lg border p-3 transition-all cursor-pointer",
+                          "group relative rounded-lg border p-3 transition-all",
                           config.borderColor,
                           config.bgColor,
                           !notification.read && "ring-1 ring-primary/20",
@@ -218,12 +262,30 @@ export function NotificationPanel({
                             <Icon className={cn("h-4 w-4", config.color)} aria-hidden="true" />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-foreground pr-6">
-                              {notification.title}
-                            </p>
+                            <div className="flex items-start justify-between gap-2">
+                              <p className="text-sm font-medium text-foreground pr-6">
+                                {notification.title}
+                              </p>
+                              {status && (
+                                <Badge 
+                                  variant="secondary" 
+                                  className={cn("text-[10px] shrink-0", status.color, "text-white")}
+                                >
+                                  {status.label}
+                                </Badge>
+                              )}
+                            </div>
                             <p className="mt-0.5 text-xs text-muted-foreground line-clamp-2">
                               {notification.message}
                             </p>
+                            
+                            {/* Volunteer info - shown for disabled users */}
+                            {notification.reportedBy && userType === "disabled" && (
+                              <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground bg-background/50 rounded-md px-2 py-1">
+                                <User className="h-3 w-3" />
+                                <span>Bildiren: <span className="font-medium text-foreground">{notification.reportedBy}</span></span>
+                              </div>
+                            )}
                             
                             {/* Image Preview */}
                             {notification.image && (
@@ -233,7 +295,8 @@ export function NotificationPanel({
                                   e.stopPropagation()
                                   setSelectedImage({ 
                                     url: notification.image!, 
-                                    alt: notification.imageAlt || "Bildirim fotografI" 
+                                    alt: notification.imageAlt || "Bildirim fotografI",
+                                    reportedBy: notification.reportedBy
                                   })
                                 }}
                               >
@@ -266,6 +329,24 @@ export function NotificationPanel({
                                 </span>
                               )}
                             </div>
+
+                            {/* Action buttons for disabled users to confirm resolution */}
+                            {userType === "disabled" && notification.status === "in_progress" && onMarkResolved && (
+                              <div className="mt-3 flex gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="flex-1 h-8 text-xs"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    onMarkResolved(notification.id)
+                                  }}
+                                >
+                                  <ThumbsUp className="mr-1 h-3 w-3" />
+                                  Cozuldu Onayla
+                                </Button>
+                              </div>
+                            )}
                           </div>
                           <ChevronRight className="h-4 w-4 text-muted-foreground self-center opacity-0 group-hover:opacity-100 transition-opacity" aria-hidden="true" />
                         </div>
@@ -296,7 +377,15 @@ export function NotificationPanel({
       <Dialog open={!!selectedImage} onOpenChange={() => setSelectedImage(null)}>
         <DialogContent className="max-w-2xl p-0 overflow-hidden">
           <DialogHeader className="p-4 pb-2">
-            <DialogTitle>{selectedImage?.alt}</DialogTitle>
+            <DialogTitle className="flex items-center justify-between">
+              <span>{selectedImage?.alt}</span>
+              {selectedImage?.reportedBy && (
+                <Badge variant="secondary" className="font-normal">
+                  <User className="mr-1 h-3 w-3" />
+                  {selectedImage.reportedBy}
+                </Badge>
+              )}
+            </DialogTitle>
           </DialogHeader>
           {selectedImage && (
             <div className="px-4 pb-4">
@@ -305,6 +394,18 @@ export function NotificationPanel({
                 alt={selectedImage.alt}
                 className="w-full h-auto rounded-lg"
               />
+              {userType === "disabled" && (
+                <div className="mt-4 flex gap-2">
+                  <Button variant="outline" className="flex-1">
+                    <Wrench className="mr-2 h-4 w-4" />
+                    Belediyeye Ilet
+                  </Button>
+                  <Button className="flex-1">
+                    <ThumbsUp className="mr-2 h-4 w-4" />
+                    Tesekkur Et
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </DialogContent>

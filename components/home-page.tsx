@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react"
 import { cn } from "@/lib/utils"
-import { Header } from "./header"
+import { Header, type UserType } from "./header"
 import { FilterSidebar, type FilterState } from "./filter-sidebar"
 import { MapView } from "./map-view"
 import { NotificationPanel, type Notification } from "./notification-panel"
@@ -14,7 +14,8 @@ import {
   PanelLeft,
   PanelRight,
   AlertTriangle,
-  Plus
+  Camera,
+  Building2
 } from "lucide-react"
 import {
   Tooltip,
@@ -31,13 +32,13 @@ const partnerOrganizations = [
   { id: "4", name: "Isitme Engelliler Dernegi", logo: "/partners/ied.svg", color: "#8b5cf6" },
 ]
 
-// Sample notifications with images
-const initialNotifications: Notification[] = [
+// Sample notifications with images - different for each user type
+const volunteerNotifications: Notification[] = [
   {
     id: "1",
     type: "warning",
     title: "Asansor Arizasi",
-    message: "Taksim Metro Istasyonu asansoru gecici olarak hizmet disIdir. Alternatif rota onerilir.",
+    message: "Taksim Metro Istasyonu asansoru gecici olarak hizmet disidir. Alternatif rota onerilir.",
     location: "Taksim, Istanbul",
     timestamp: new Date(Date.now() - 1000 * 60 * 15),
     read: false,
@@ -58,13 +59,11 @@ const initialNotifications: Notification[] = [
   {
     id: "3",
     type: "success",
-    title: "Yeni Rampa Eklendi",
-    message: "Kadikoy Sahil yoluna yeni engelli rampasi eklendi ve dogrulandi.",
+    title: "Raporunuz Onaylandi",
+    message: "Kadikoy Sahil yoluna gonderdiginiz rampa raporu dogrulandi ve haritaya eklendi.",
     location: "Kadikoy, Istanbul",
     timestamp: new Date(Date.now() - 1000 * 60 * 60),
     read: false,
-    image: "https://images.unsplash.com/photo-1587293852726-70cdb56c2866?w=400&h=300&fit=crop",
-    imageAlt: "Yeni yapilmis engelli rampasi",
   },
   {
     id: "4",
@@ -74,38 +73,78 @@ const initialNotifications: Notification[] = [
     timestamp: new Date(Date.now() - 1000 * 60 * 60 * 3),
     read: true,
   },
+]
+
+const disabledUserNotifications: Notification[] = [
   {
-    id: "5",
-    type: "warning",
-    title: "Engelli Park Ihlali",
-    message: "Sisli Mesrutiyet Caddesi uzerinde engelli park yerine normal arac park etmis durumda.",
-    location: "Sisli, Istanbul",
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 4),
-    read: true,
-    image: "https://images.unsplash.com/photo-1506521781263-d8422e82f27a?w=400&h=300&fit=crop",
-    imageAlt: "Park ihlali fotografI",
+    id: "d1",
+    type: "volunteer_report",
+    title: "Asansor Arizasi Bildirimi",
+    message: "Taksim Metro Istasyonu asansoru arizali. Belediye bilgilendirildi.",
+    location: "Taksim, Istanbul",
+    timestamp: new Date(Date.now() - 1000 * 60 * 30),
+    read: false,
+    image: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=300&fit=crop",
+    imageAlt: "Asansor fotografI",
+    reportedBy: "Mehmet K.",
+    status: "in_progress",
   },
   {
-    id: "6",
+    id: "d2",
+    type: "volunteer_report",
+    title: "Yeni Rampa Eklendi",
+    message: "Kadikoy Sahil yoluna yeni engelli rampasi eklendi ve fotograflandi.",
+    location: "Kadikoy, Istanbul",
+    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2),
+    read: false,
+    image: "https://images.unsplash.com/photo-1587293852726-70cdb56c2866?w=400&h=300&fit=crop",
+    imageAlt: "Yeni rampa fotografI",
+    reportedBy: "Ayse T.",
+    status: "resolved",
+  },
+  {
+    id: "d3",
+    type: "warning",
+    title: "Kaldirim Uyarisi",
+    message: "Besiktas Meydani cevresinde kaldirim cokme sorunu. Dikkatli olunuz.",
+    location: "Besiktas, Istanbul",
+    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 3),
+    read: true,
+    image: "https://images.unsplash.com/photo-1584438784894-089d6a62b8fa?w=400&h=300&fit=crop",
+    imageAlt: "Bozuk kaldirim fotografI",
+    reportedBy: "Ali R.",
+    status: "pending",
+  },
+  {
+    id: "d4",
     type: "success",
-    title: "Rota Onaylandi",
-    message: "Paylastiginiz erisilebilir rota topluluk tarafIndan dogrulandi.",
+    title: "Sorun Cozuldu",
+    message: "Sisli Metro cikisi rampa sorunu belediye tarafindan giderildi.",
+    location: "Sisli, Istanbul",
     timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24),
     read: true,
+    status: "resolved",
   },
 ]
 
 export function HomePage() {
+  const [userType, setUserType] = useState<UserType>("volunteer")
   const [filters, setFilters] = useState<FilterState>({
     disabilityTypes: [],
     poiTypes: [],
     routePreferences: [],
   })
 
-  const [notifications, setNotifications] = useState<Notification[]>(initialNotifications)
+  const [notifications, setNotifications] = useState<Notification[]>(volunteerNotifications)
   const [leftSidebarOpen, setLeftSidebarOpen] = useState(true)
   const [rightPanelOpen, setRightPanelOpen] = useState(true)
   const [reportModalOpen, setReportModalOpen] = useState(false)
+
+  const handleUserTypeChange = useCallback((type: UserType) => {
+    setUserType(type)
+    // Change notifications based on user type
+    setNotifications(type === "volunteer" ? volunteerNotifications : disabledUserNotifications)
+  }, [])
 
   const handleNotificationRead = useCallback((id: string) => {
     setNotifications(prev => 
@@ -121,9 +160,32 @@ export function HomePage() {
     setNotifications([])
   }, [])
 
+  const handleMarkResolved = useCallback((id: string) => {
+    setNotifications(prev => 
+      prev.map(n => n.id === id ? { ...n, status: "resolved" as const } : n)
+    )
+  }, [])
+
   const handleLocationSelect = useCallback((location: { lat: number; lng: number; name: string }) => {
     // Handle location selection
   }, [])
+
+  // Different floating button based on user type
+  const FloatingButtonContent = userType === "volunteer" ? (
+    <>
+      <Camera className="h-6 w-6" />
+      <span className="sr-only">Fotograf cekerek rapor gonder</span>
+    </>
+  ) : (
+    <>
+      <Building2 className="h-6 w-6" />
+      <span className="sr-only">Belediyeye bildir</span>
+    </>
+  )
+
+  const floatingButtonTooltip = userType === "volunteer" 
+    ? "Sorun fotografla ve raporla" 
+    : "Erisilebilirlik merkezi"
 
   return (
     <TooltipProvider>
@@ -132,6 +194,8 @@ export function HomePage() {
         <Header 
           showMenuButton={true}
           onMenuToggle={() => setLeftSidebarOpen(!leftSidebarOpen)}
+          userType={userType}
+          onUserTypeChange={handleUserTypeChange}
         />
 
         {/* Main Content */}
@@ -181,15 +245,18 @@ export function HomePage() {
               <TooltipTrigger asChild>
                 <Button
                   size="lg"
-                  className="absolute bottom-24 md:bottom-6 left-1/2 -translate-x-1/2 md:left-auto md:right-24 md:translate-x-0 h-14 w-14 rounded-full shadow-xl hover:scale-105 transition-transform"
+                  className={cn(
+                    "absolute bottom-24 md:bottom-6 left-1/2 -translate-x-1/2 md:left-auto md:right-24 md:translate-x-0 h-14 w-14 rounded-full shadow-xl hover:scale-105 transition-transform",
+                    userType === "disabled" && "bg-chart-2 hover:bg-chart-2/90"
+                  )}
                   onClick={() => setReportModalOpen(true)}
-                  aria-label="Belediyeye bildir"
+                  aria-label={floatingButtonTooltip}
                 >
-                  <AlertTriangle className="h-6 w-6" />
+                  {FloatingButtonContent}
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="left">
-                <p>Erisilebilirlik sorunu bildir</p>
+                <p>{floatingButtonTooltip}</p>
               </TooltipContent>
             </Tooltip>
 
@@ -253,6 +320,8 @@ export function HomePage() {
                 onNotificationRead={handleNotificationRead}
                 onNotificationDismiss={handleNotificationDismiss}
                 onClearAll={handleClearAllNotifications}
+                onMarkResolved={handleMarkResolved}
+                userType={userType}
               />
             )}
           </div>
@@ -285,11 +354,20 @@ export function HomePage() {
           
           {/* Report Button - Mobile */}
           <Button 
-            className="flex flex-col items-center gap-0.5 h-auto py-2 px-4 bg-primary hover:bg-primary/90"
+            className={cn(
+              "flex flex-col items-center gap-0.5 h-auto py-2 px-4",
+              userType === "volunteer" 
+                ? "bg-primary hover:bg-primary/90" 
+                : "bg-chart-2 hover:bg-chart-2/90"
+            )}
             onClick={() => setReportModalOpen(true)}
           >
-            <AlertTriangle className="h-5 w-5" />
-            <span className="text-[10px]">Bildir</span>
+            {userType === "volunteer" ? (
+              <Camera className="h-5 w-5" />
+            ) : (
+              <Building2 className="h-5 w-5" />
+            )}
+            <span className="text-[10px]">{userType === "volunteer" ? "Raporla" : "Bildir"}</span>
           </Button>
 
           <Button 
@@ -307,7 +385,7 @@ export function HomePage() {
                 </span>
               )}
             </div>
-            <span className="text-[10px]">Bildirimler</span>
+            <span className="text-[10px]">{userType === "disabled" ? "Takip" : "Bildirim"}</span>
           </Button>
           <Button 
             variant="ghost" 
@@ -323,7 +401,8 @@ export function HomePage() {
         {/* Report Modal */}
         <ReportModal 
           open={reportModalOpen} 
-          onOpenChange={setReportModalOpen} 
+          onOpenChange={setReportModalOpen}
+          userType={userType}
         />
       </div>
     </TooltipProvider>
